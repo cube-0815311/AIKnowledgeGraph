@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>线下业务智能知识图谱助手</title>
+    <script src="static/tailwindcss.min.js"></script>
+    <link href="static/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入G6 -->
+    <script src="static/g6.min.js"></script>
+
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .chat-container {
+                height: calc(100vh - 120px);
+            }
+            .node-info-panel {
+                transition: all 0.3s ease;
+                transform: translateX(110%);
+            }
+            .node-info-panel.show {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans m-0 p-0">
+    <!-- 头部 -->
+    <header class="bg-white border-b border-gray-200 py-4 px-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-sitemap text-primary text-xl"></i>
+                <h1 class="text-lg font-bold text-dark">AI对话与知识图谱</h1>
+            </div>
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <i class="fa fa-moon-o text-gray-600"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <section class="bg-white rounded-xl shadow-md overflow-hidden">
+            <!-- 对话内容区域 -->
+            <div id="chat-container" class="p-4 chat-container overflow-y-auto space-y-6">
+                <div class="flex items-start">
+                    <div class="bg-secondary/10 p-3 rounded-lg rounded-tl-none max-w-[80%]">
+                        <p>您好！我是AI助手，我可以回答您的问题，也可以为您生成和展示知识图谱。</p>
+                        <p class="mt-2 text-sm text-gray-500">提示：您可以尝试输入"显示知识图谱示例"来查看效果</p>
+                    </div>
+                    <div class="ml-2 mt-1 text-secondary">
+                        <i class="fa fa-robot"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="border-t border-gray-100 p-4">
+                <div class="flex">
+                    <input
+                        type="text"
+                        id="chat-input"
+                        placeholder="输入您的问题..."
+                        class="flex-1 px-4 py-3 rounded-l-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                    <button
+                        id="send-chat"
+                        class="bg-secondary text-white px-6 py-3 rounded-r-lg hover:bg-secondary/90 transition-colors"
+                    >
+                        <i class="fa fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 全屏图谱容器 (默认隐藏) -->
+    <div id="fullscreen-graph-container" class="hidden fixed inset-0 z-1000 bg-white flex flex-col">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-white shadow-sm">
+            <h3 class="font-semibold text-lg flex items-center">
+                <i class="fa fa-sitemap text-primary mr-2"></i>知识图谱
+            </h3>
+            <button id="exit-fullscreen" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <i class="fa fa-times text-gray-600"></i>
+            </button>
+        </div>
+
+        <!-- 节点信息面板 -->
+        <div id="node-info-panel" class="node-info-panel absolute top-16 right-0 w-80 bg-white shadow-lg rounded-l-lg border border-gray-200 max-h-[calc(100vh-64px)] overflow-y-auto">
+            <div class="p-4 border-b border-gray-100">
+                <h4 class="font-semibold">节点信息</h4>
+            </div>
+            <div id="node-info-content" class="p-4">
+                <p class="text-gray-500 text-center py-8">请点击节点查看详情</p>
+            </div>
+        </div>
+
+        <div id="fullscreen-graph-content" class="flex-1"></div>
+    </div>
+
+    <!-- 加载中提示 -->
+    <div id="loading-modal" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-xl flex items-center space-x-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+            <p>正在处理您的请求...</p>
+        </div>
+    </div>
+
+     <script src="static/index.js"></script>
+</body>
+</html>
