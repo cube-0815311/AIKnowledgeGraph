@@ -8,7 +8,6 @@ from typing import Optional
 from contextlib import AsyncExitStack
 # MCP Server 相关导入
 from mcp import ClientSession
-from system_prompt import REACT_PROMPT
 from mcp.client.sse import sse_client
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
