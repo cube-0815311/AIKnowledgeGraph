@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()  # load environment variables from .env
 
 # 配置信息
-DEEPSEEK_API_KEY = "sk-d817c9a0b21e42628d6d4600ddee2598"
+DEEPSEEK_API_KEY = "sk-xxxxxx"
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"  # DeepSeek 的 OpenAI 兼容接口地址
 MCP_SERVER_URL = "http://127.0.0.1:18080/sse"
 
