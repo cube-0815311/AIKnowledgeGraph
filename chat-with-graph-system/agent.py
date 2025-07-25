@@ -15,11 +15,6 @@ from datetime import datetime
 
 load_dotenv()  # load environment variables from .env
 
-# 配置信息
-DEEPSEEK_API_KEY = "sk-5c8a2d565be2467baa3c01a4de6ea3a2"
-DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"  # DeepSeek 的 OpenAI 兼容接口地址
-MCP_SERVER_URL = "http://127.0.0.1:18080/sse"
-
 
 class DeepSeekOpenAIMCPIntegration:
     def __init__(self):
