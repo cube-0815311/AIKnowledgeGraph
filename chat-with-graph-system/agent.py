@@ -1,7 +1,7 @@
 import asyncio
 import json
 import re
-
+import ast
 import os
 from openai import OpenAI  # 使用 OpenAI 客户端
 from typing import Optional
@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 load_dotenv()  # load environment variables from .env
-
+MCP_SERVER_URL="http://127.0.0.1:18080/sse"
 
 class DeepSeekOpenAIMCPIntegration:
     def __init__(self):
@@ -177,6 +177,24 @@ class DeepSeekOpenAIMCPIntegration:
                         "type": "progress",
                         "status": "running",
                         "message": f"{tool_name}工具执行完成",
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    }
+
+                    # 按照SSE格式发送数据
+                    yield f"data: {json.dumps(data)}\n\n"
+                    # 将字符串安全解析成字典对象
+                    jsonData = ast.literal_eval(result.content[0].text)
+
+                    # 提取字段
+                    node = {
+                        "id" : jsonData['id'],
+                        "label": jsonData['label']
+                    }
+                    # 构建数据
+                    data = {
+                        "type": "node",
+                        "status": "running",
+                        "message": node,
                         "timestamp": datetime.now().strftime("%H:%M:%S")
                     }
 

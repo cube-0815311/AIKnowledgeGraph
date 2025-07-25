@@ -37,6 +37,8 @@ def get_merchant_info(merchant_id: str) -> object:
     return {
         "merchantId": merchant_id,
         "merchantName": merchant_name,
+        "id": merchant_id,
+        "label": merchant_name,
         "stores": stores
     }
 
@@ -57,6 +59,8 @@ def get_store_info(store_id: str) -> object:
     return {
         "storeId": store_id,
         "storeName": store_name,
+        "id": store_id,
+        "label": store_name,
         "salesReps": reps
     }
 
@@ -72,6 +76,8 @@ def get_sales_rep_info(rep_id: str) -> object:
     email = f"{rep_name.lower()}@example.com"
     return {
         "salesRepId": rep_id,
+        "id": rep_id,
+        "label": rep_name,
         "salesRepName": rep_name,
         "phone": phone,
         "email": email
