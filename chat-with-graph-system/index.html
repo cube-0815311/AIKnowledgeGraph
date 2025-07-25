@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智能对话系统</title>
+  <script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.8.10/dist/g6.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <i class="fas fa-brain logo-icon"></i>
+      <span>智能对话系统</span>
+    </div>
+    <div class="user-info">
+      <div class="user-avatar">U</div>
+      <span>用户</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="chat-container">
+      <div class="messages" id="messages">
+        <div class="message bot-message">
+          下午好，各位创客们
+          <div class="message-time">现在</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <textarea class="message-input" id="messageInput" placeholder="请输入消息"></textarea>
+        <button class="send-button" id="sendButton">
+          <i class="fas fa-paper-plane"></i>
+          <span>发送</span>
+        </button>
+      </div>
+
+      <!-- 下方功能选项 -->
+      <div class="function-options">
+        <button class="option-button active" data-type="text">
+          <i class="fas fa-comment"></i>
+          <span>文本</span>
+        </button>
+        <button class="option-button" data-type="knowledge-graph">
+          <i class="fas fa-project-diagram"></i>
+          <span>知识图谱</span>
+        </button>
+        <button class="option-button" data-type="table">
+          <i class="fas fa-table"></i>
+          <span>表格</span>
+        </button>
+        <button class="option-button" data-type="card">
+          <i class="fas fa-th-large"></i>
+          <span>卡片</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 知识图谱全屏容器 -->
+  <div class="knowledge-graph-fullscreen" id="knowledgeGraph">
+    <div class="graph-header">
+      <h2><i class="fas fa-project-diagram"></i> 知识图谱</h2>
+      <button class="close-graph" id="closeGraph">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="graph-content">
+      <div class="graph-sidebar" id="graphSidebar">
+        <h3><i class="fas fa-tasks"></i> 处理进度</h3>
+        <!-- 动态进度项将在这里添加 -->
+      </div>
+      <div class="graph-main" id="graphMain">
+        <!-- 节点信息面板 -->
+        <div class="node-info-panel" id="nodeInfoPanel">
+          <h3><i class="fas fa-info-circle"></i> 节点信息</h3>
+          <div class="node-info-content" id="nodeInfoContent">
+            <p>请点击图谱中的节点查看详细信息</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ <script src="static/js/tool.js"></script>
+</body>
+</html>

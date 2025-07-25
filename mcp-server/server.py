@@ -30,7 +30,7 @@ def get_merchant_info(merchant_id: str) -> object:
         merchant_id = f"MER_{uuid.uuid4().hex[:8]}"
     merchant_name = f"商户_{merchant_id[-4:]}"
     stores = []
-    for i in range(random.randint(1, 3)):
+    for i in range(random.randint(1, 2)):
         store_id = f"STR_{uuid.uuid4().hex[:6]}"
         store_name = f"门店_{i+1}"
         stores.append({"storeId": store_id, "storeName": store_name})
@@ -50,7 +50,7 @@ def get_store_info(store_id: str) -> object:
     store_name = f"门店_{store_id[-4:]}"
     reps = []
     names = ["张三", "李四", "王五", "赵六"]
-    for i in range(random.randint(1, 5)):
+    for i in range(random.randint(1, 2)):
         rep_id = f"REP_{uuid.uuid4().hex[:6]}"
         rep_name = random.choice(names)
         reps.append({"salesRepId": rep_id, "salesRepName": rep_name})

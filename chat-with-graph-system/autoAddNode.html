@@ -1,0 +1,819 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知识图谱对话系统</title>
+  <script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.8.12/dist/g6.min.js"></script>
+  <style>
+    :root {
+      --primary-dark-blue: #0A2463;
+      --secondary-charcoal: #2C3E50;
+      --accent-tech-blue: #21E6C1;
+      --highlight-aqua: #3DDBD9;
+      --light-gray: #f5f5f5;
+      --white: #ffffff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--light-gray);
+      color: var(--secondary-charcoal);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* 对话区域样式 */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .chat-box {
+      width: 100%;
+      max-width: 800px;
+      height: 50vh;
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages-container {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      line-height: 1.5;
+      position: relative;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .user-message {
+      align-self: flex-end;
+      background: var(--primary-dark-blue);
+      color: var(--white);
+      border-bottom-right-radius: 4px;
+    }
+
+    .assistant-message {
+      align-self: flex-start;
+      background: var(--light-gray);
+      color: var(--secondary-charcoal);
+      border-bottom-left-radius: 4px;
+    }
+
+    .progress-message {
+      align-self: flex-start;
+      background: var(--light-gray);
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 15px;
+      width: 100%;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .progress-title {
+      font-weight: 600;
+      color: var(--primary-dark-blue);
+    }
+
+    .toggle-icon {
+      transition: transform 0.3s ease;
+    }
+
+    .toggle-icon.rotated {
+      transform: rotate(180deg);
+    }
+
+    .progress-steps {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .progress-step {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+
+    .step-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-size: 12px;
+    }
+
+    .step-pending {
+      background: #f0f0f0;
+      color: #999;
+    }
+
+    .step-processing {
+      background: var(--highlight-aqua);
+      color: white;
+    }
+
+    .step-completed {
+      background: var(--accent-tech-blue);
+      color: white;
+    }
+
+    .input-area {
+      display: flex;
+      padding: 20px;
+      border-top: 1px solid #eee;
+      background: white;
+    }
+
+    .message-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 24px;
+      outline: none;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .message-input:focus {
+      border-color: var(--accent-tech-blue);
+    }
+
+    .send-button {
+      margin-left: 12px;
+      padding: 12px 24px;
+      background: var(--primary-dark-blue);
+      color: white;
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+
+    .send-button:hover {
+      background: #081a4a;
+    }
+
+    /* 选项区域样式 */
+    .options-container {
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .options {
+      display: flex;
+      gap: 15px;
+      background: white;
+      padding: 15px 25px;
+      border-radius: 30px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .option-button {
+      padding: 10px 20px;
+      background: transparent;
+      border: 2px solid var(--primary-dark-blue);
+      color: var(--primary-dark-blue);
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .option-button:hover, .option-button.active {
+      background: var(--primary-dark-blue);
+      color: white;
+    }
+
+    /* 知识图谱全屏样式 */
+    .knowledge-graph-fullscreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      z-index: 1000;
+      display: flex;
+    }
+
+    .graph-sidebar {
+      width: 10%;
+      background: var(--secondary-charcoal);
+      color: white;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .graph-main {
+      flex: 1;
+      position: relative;
+    }
+
+    .graph-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    .node-info-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .close-graph-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--primary-dark-blue);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 11;
+    }
+
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--accent-tech-blue);
+    }
+
+    .sidebar-step {
+      padding: 12px;
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .sidebar-step.active {
+      background: var(--highlight-aqua);
+      color: var(--secondary-charcoal);
+    }
+
+    .sidebar-step.completed {
+      background: var(--accent-tech-blue);
+      color: white;
+    }
+
+    /* 链接样式 */
+    .graph-link {
+      color: var(--accent-tech-blue);
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 500;
+      display: inline-block;
+      margin-top: 8px;
+    }
+
+    .graph-link:hover {
+      color: var(--highlight-aqua);
+    }
+
+    /* 加载指示器 */
+    .loading-indicator {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-left: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 对话区域 -->
+    <div class="chat-container">
+      <div class="chat-box">
+        <div class="messages-container" id="messagesContainer">
+          <!-- 消息将在这里动态添加 -->
+        </div>
+        <div class="input-area">
+          <input type="text" class="message-input" id="messageInput" placeholder="输入您的问题...">
+          <button class="send-button" id="sendButton">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 选项区域 -->
+    <div class="options-container">
+      <div class="options">
+        <button class="option-button active" data-type="text">文本</button>
+        <button class="option-button" data-type="knowledge-graph">知识图谱</button>
+        <button class="option-button" data-type="table">表格</button>
+        <button class="option-button" data-type="card">卡片</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 全局状态管理（不使用 localStorage）
+    const AppState = {
+      currentMode: 'text',
+      conversationHistory: [],
+      graphSessions: {},
+      currentGraphSessionId: null,
+      graphInstances: {}
+    };
+
+    // DOM 元素引用
+    const DOM = {
+      messagesContainer: document.getElementById('messagesContainer'),
+      messageInput: document.getElementById('messageInput'),
+      sendButton: document.getElementById('sendButton'),
+      optionButtons: document.querySelectorAll('.option-button')
+    };
+
+    // 初始化应用
+    function initApp() {
+      setupEventListeners();
+    }
+
+    // 设置事件监听器
+    function setupEventListeners() {
+      DOM.sendButton.addEventListener('click', sendMessage);
+      DOM.messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      DOM.optionButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          DOM.optionButtons.forEach(btn => btn.classList.remove('active'));
+          button.classList.add('active');
+          AppState.currentMode = button.dataset.type;
+        });
+      });
+    }
+
+    // 发送消息
+    function sendMessage() {
+      const message = DOM.messageInput.value.trim();
+      if (!message) return;
+
+      // 添加用户消息到界面
+      addMessageToUI('user', message);
+      DOM.messageInput.value = '';
+
+      // 保存到历史记录
+      const userMessage = {
+        id: Date.now(),
+        type: 'user',
+        content: message,
+        timestamp: new Date()
+      };
+      AppState.conversationHistory.push(userMessage);
+
+      // 根据当前模式处理消息
+      if (AppState.currentMode === 'knowledge-graph') {
+        handleKnowledgeGraphMode(message);
+      } else {
+        // 模拟普通文本回复
+        setTimeout(() => {
+          const assistantMessage = {
+            id: Date.now() + 1,
+            type: 'assistant',
+            content: `这是对"${message}"的回复。当前模式是${AppState.currentMode}。`,
+            timestamp: new Date()
+          };
+          AppState.conversationHistory.push(assistantMessage);
+          addMessageToUI('assistant', assistantMessage.content);
+        }, 1000);
+      }
+    }
+
+    // 处理知识图谱模式
+    function handleKnowledgeGraphMode(message) {
+      // 创建新的图谱会话
+      const sessionId = `graph_${Date.now()}`;
+      AppState.currentGraphSessionId = sessionId;
+
+      AppState.graphSessions[sessionId] = {
+        id: sessionId,
+        query: message,
+        steps: [],
+        nodes: [],
+        edges: [],
+        isComplete: false
+      };
+
+      // 立即全屏展示知识图谱界面
+      openKnowledgeGraph(sessionId);
+
+      // 添加进度消息到对话历史（但不在界面显示）
+      const progressMessage = {
+        id: `progress_${sessionId}`,
+        type: 'progress',
+        sessionId: sessionId,
+        steps: [],
+        isExpanded: false
+      };
+      AppState.conversationHistory.push(progressMessage);
+
+      // 开始 SSE 连接
+      startSSEConnection(message, sessionId);
+    }
+
+    // 开始 SSE 连接
+    function startSSEConnection(query, sessionId) {
+      // 模拟 SSE 连接 - 实际应用中替换为真实的 EventSource 连接
+      simulateSSEEvents(sessionId);
+    }
+
+    // 模拟 SSE 事件（实际应用中替换为真实 SSE 处理）
+    function simulateSSEEvents(sessionId) {
+      const session = AppState.graphSessions[sessionId];
+      if (!session) return;
+
+      // 模拟后端返回的步骤
+      const steps = [
+        { id: 1, description: '正在解析用户查询', status: 'processing' },
+        { id: 2, description: '调用实体识别工具', status: 'pending' },
+        { id: 3, description: '调用关系抽取工具', status: 'pending' },
+        { id: 4, description: '构建知识图谱结构', status: 'pending' },
+        { id: 5, description: '图谱生成完成', status: 'pending' }
+      ];
+
+      let currentStep = 0;
+
+      const interval = setInterval(() => {
+        if (currentStep < steps.length) {
+          // 更新步骤状态
+          steps[currentStep].status = 'completed';
+          if (currentStep + 1 < steps.length) {
+            steps[currentStep + 1].status = 'processing';
+          }
+
+          // 更新会话状态
+          AppState.graphSessions[sessionId].steps = [...steps];
+
+          // 更新侧边栏进度显示
+          updateSidebarSteps(sessionId, steps);
+
+          // 根据步骤模拟返回节点和边数据
+          if (currentStep === 1) {
+            // 实体识别结果
+            const entities = [
+              { id: 'e1', label: '人工智能', type: 'concept' },
+              { id: 'e2', label: '机器学习', type: 'technology' },
+              { id: 'e3', label: '深度学习', type: 'technology' }
+            ];
+            AppState.graphSessions[sessionId].nodes.push(...entities);
+          } else if (currentStep === 2) {
+            // 关系抽取结果
+            const relations = [
+              { source: 'e1', target: 'e2', label: '包含' },
+              { source: 'e2', target: 'e3', label: '子领域' }
+            ];
+            AppState.graphSessions[sessionId].edges.push(...relations);
+          } else if (currentStep === 3) {
+            // 更多节点
+            const additionalNodes = [
+              { id: 'e4', label: '神经网络', type: 'technology' },
+              { id: 'e5', label: '数据挖掘', type: 'technology' }
+            ];
+            AppState.graphSessions[sessionId].nodes.push(...additionalNodes);
+
+            const additionalEdges = [
+              { source: 'e3', target: 'e4', label: '使用' },
+              { source: 'e1', target: 'e5', label: '相关' }
+            ];
+            AppState.graphSessions[sessionId].edges.push(...additionalEdges);
+          } else if (currentStep === 4) {
+            // 图谱完成
+            AppState.graphSessions[sessionId].isComplete = true;
+
+            // 在对话中添加完成消息
+            setTimeout(() => {
+              const completionMessage = {
+                id: `completion_${sessionId}`,
+                type: 'assistant',
+                content: `知识图谱已生成完成`,
+                sessionId: sessionId,
+                timestamp: new Date()
+              };
+              AppState.conversationHistory.push(completionMessage);
+
+              // 如果对话界面还在，添加完成链接
+              const existingChatBox = document.querySelector('.chat-box');
+              if (existingChatBox) {
+                const messagesContainer = existingChatBox.querySelector('.messages-container');
+                if (messagesContainer) {
+                  const messageDiv = document.createElement('div');
+                  messageDiv.className = 'message assistant-message';
+                  messageDiv.innerHTML = `
+                    <p>知识图谱已生成完成</p>
+                    <div class="graph-link" data-session-id="${sessionId}">查看知识图谱</div>
+                  `;
+                  messagesContainer.appendChild(messageDiv);
+
+                  const graphLink = messageDiv.querySelector('.graph-link');
+                  graphLink.addEventListener('click', () => {
+                    openKnowledgeGraph(sessionId);
+                  });
+
+                  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+              }
+            }, 500);
+          }
+
+          // 更新图谱显示
+          if (AppState.graphInstances[sessionId]) {
+            updateGraphData(sessionId);
+          }
+
+          currentStep++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 2000);
+    }
+
+    // 更新侧边栏步骤
+    function updateSidebarSteps(sessionId, steps) {
+      const sidebarSteps = document.getElementById('sidebarSteps');
+      if (sidebarSteps) {
+        sidebarSteps.innerHTML = '';
+        steps.forEach(step => {
+          const stepDiv = document.createElement('div');
+          stepDiv.className = `sidebar-step ${step.status}`;
+          stepDiv.textContent = step.description;
+          sidebarSteps.appendChild(stepDiv);
+        });
+      }
+    }
+
+    // 向界面添加消息
+    function addMessageToUI(role, content) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${role}-message`;
+      messageDiv.textContent = content;
+      DOM.messagesContainer.appendChild(messageDiv);
+      DOM.messagesContainer.scrollTop = DOM.messagesContainer.scrollHeight;
+    }
+
+    // 打开知识图谱全屏界面
+    function openKnowledgeGraph(sessionId) {
+      const session = AppState.graphSessions[sessionId];
+      if (!session) return;
+
+      // 如果已经存在全屏界面，先移除
+      const existingFullscreen = document.getElementById('graphFullscreen');
+      if (existingFullscreen) {
+        document.body.removeChild(existingFullscreen);
+      }
+
+      // 创建全屏容器
+      const fullscreenContainer = document.createElement('div');
+      fullscreenContainer.className = 'knowledge-graph-fullscreen';
+      fullscreenContainer.id = 'graphFullscreen';
+
+      fullscreenContainer.innerHTML = `
+        <div class="graph-sidebar">
+          <div class="sidebar-title">生成进度</div>
+          <div id="sidebarSteps">
+            <!-- 步骤将动态添加 -->
+          </div>
+        </div>
+        <div class="graph-main">
+          <button class="close-graph-button" id="closeGraphButton">×</button>
+          <div class="graph-container" id="graphContainer"></div>
+          <div class="node-info-panel" id="nodeInfoPanel" style="display: none;">
+            <h3>节点信息</h3>
+            <div id="nodeInfoContent"></div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(fullscreenContainer);
+
+      // 等待 DOM 更新后初始化图谱
+      setTimeout(() => {
+        initGraph(sessionId);
+      }, 100);
+
+      // 设置关闭按钮事件
+      document.getElementById('closeGraphButton').addEventListener('click', () => {
+        document.body.removeChild(fullscreenContainer);
+      });
+
+      // 初始化侧边栏步骤
+      updateSidebarSteps(sessionId, session.steps || []);
+    }
+
+    // 初始化 G6 图谱
+    function initGraph(sessionId) {
+      const session = AppState.graphSessions[sessionId];
+      const container = document.getElementById('graphContainer');
+
+      if (!container || !window.G6) return;
+
+      const width = container.offsetWidth;
+      const height = container.offsetHeight;
+
+      // 创建图实例
+      const graph = new G6.Graph({
+        container: 'graphContainer',
+        width,
+        height,
+        layout: {
+          type: 'force',
+          preventOverlap: true,
+          linkDistance: 200,
+          nodeStrength: 30,
+          edgeStrength: 0.1,
+        },
+        defaultNode: {
+          size: [60, 30],
+          style: {
+            fill: '#21E6C1',
+            stroke: '#0A2463',
+            lineWidth: 2,
+          },
+          labelCfg: {
+            style: {
+              fill: '#2C3E50',
+              fontSize: 12,
+            },
+          },
+        },
+        defaultEdge: {
+          style: {
+            stroke: '#3DDBD9',
+            lineWidth: 2,
+          },
+          labelCfg: {
+            autoRotate: true,
+            style: {
+              fill: '#2C3E50',
+              fontSize: 12,
+            },
+          },
+        },
+        nodeStateStyles: {
+          hover: {
+            fill: 'lightsteelblue',
+          },
+        },
+        edgeStateStyles: {
+          hover: {
+            stroke: 'steelblue',
+          },
+        },
+        modes: {
+          default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
+        },
+      });
+
+      // 保存图实例
+      AppState.graphInstances[sessionId] = graph;
+
+      // 渲染初始数据
+      updateGraphData(sessionId);
+
+      // 节点点击事件
+      graph.on('node:click', (evt) => {
+        const node = evt.item;
+        const model = node.getModel();
+        showNodeInfo(model);
+      });
+
+      // 自适应窗口大小
+      window.addEventListener('resize', () => {
+        if (!graph || graph.destroyed) return;
+        graph.changeSize(container.offsetWidth, container.offsetHeight);
+      });
+    }
+
+    // 更新图谱数据
+    function updateGraphData(sessionId) {
+      const session = AppState.graphSessions[sessionId];
+      const graph = AppState.graphInstances[sessionId];
+
+      if (!graph || !session) return;
+
+      // 转换节点数据格式
+      const nodes = session.nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        type: node.type,
+        style: {
+          fill: getNodeColor(node.type)
+        }
+      }));
+
+      // 转换边数据格式
+      const edges = session.edges.map(edge => ({
+        source: edge.source,
+        target: edge.target,
+        label: edge.label
+      }));
+
+      // 更新图数据
+      graph.data({ nodes, edges });
+      graph.render();
+    }
+
+    // 获取节点颜色
+    function getNodeColor(type) {
+      const colorMap = {
+        concept: '#21E6C1',
+        technology: '#3DDBD9',
+        person: '#FFA500',
+        organization: '#FF6347'
+      };
+      return colorMap[type] || '#21E6C1';
+    }
+
+    // 显示节点信息
+    function showNodeInfo(nodeData) {
+      const infoPanel = document.getElementById('nodeInfoPanel');
+      const infoContent = document.getElementById('nodeInfoContent');
+
+      if (infoPanel && infoContent) {
+        infoContent.innerHTML = `
+          <p><strong>ID:</strong> ${nodeData.id}</p>
+          <p><strong>标签:</strong> ${nodeData.label}</p>
+          <p><strong>类型:</strong> ${nodeData.type}</p>
+        `;
+        infoPanel.style.display = 'block';
+      }
+    }
+
+    // 初始化应用
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
+```

@@ -93,7 +93,6 @@ class DeepSeekOpenAIMCPIntegration:
             tool_dicts.append(tool_info)
         return tool_dicts
 
-
     async def process_query(self, query: str):
         """处理用户查询：大模型决策 -> 工具调用（可选）-> 生成回答"""
         # 确保 MCP 已初始化
@@ -109,18 +108,18 @@ class DeepSeekOpenAIMCPIntegration:
               └── Store (门店)
                     ├── Product (商品)
                     ├── SalesRepresentative (销售代表)
-            
+
             # 实体关系
             - Merchant → Store        （商户包含门店）
             - Store → Product         （门店包含商品）
             - Store → SalesRepresentative（门店包含销售代表）
-            
+
             # 查询规则
             1. 用户输入一个实体 ID + 类型 + 查询方向（向下 或 向上）
             2. 你需要按照方向生成实体依赖路径
                - 向下（down）：可以递归到底层
                - 向上（up）：只允许查询上一级，禁止再基于结果往下查
-            
+
             # 输出结构
             以下 JSON 格式输出结果，结果要符合 json 的规范。不能随意输出：
             {
@@ -159,17 +158,15 @@ class DeepSeekOpenAIMCPIntegration:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query}
         ]
-
+        print(messages)
         while True:
-            print("messages", messages)
             model_response = self.client.chat.completions.create(
                 model="deepseek-chat",  # DeepSeek 模型名称
                 messages=messages,
                 tools=available_tools,
                 tool_choice="auto",
-                response_format={ "type": "json_object" }
+                response_format={"type": "json_object"}
             )
-            print("model_response", model_response)
             assistant_message = model_response.choices[0].message
 
             # 2. 解析模型响应，判断是否需要调用工具
@@ -177,28 +174,20 @@ class DeepSeekOpenAIMCPIntegration:
                 for tool_call in assistant_message.tool_calls:
                     tool_name = tool_call.function.name
                     tool_args = json.loads(tool_call.function.arguments)
-                    # 构建数据
-                    data = {
-                        "progress": "tool",
-                        "status": "running",
-                        "message": f"开始调用{tool_name}工具。参数{tool_args}",
-                        "timestamp": datetime.now().strftime("%H:%M:%S")
-                    }
-
-                    # 按照SSE格式发送数据
-                    yield f"data: {json.dumps(data)}\n\n"
                     # Execute tool call
                     result = await self.mcp_session.call_tool(tool_name, tool_args)
                     print(f"Tool {tool_name} returned: {result.content[0].text}")
+                    # 构建数据
                     data = {
-                        "progress": "tool",
+                        "type": "progress",
                         "status": "running",
-                        "message": f"工具{tool_name}调用结果{result.content[0].text}",
+                        "message": f"{tool_name}工具执行完成",
                         "timestamp": datetime.now().strftime("%H:%M:%S")
                     }
 
                     # 按照SSE格式发送数据
                     yield f"data: {json.dumps(data)}\n\n"
+
                     # Continue conversation with tool results
                     messages.extend([
                         {
@@ -213,43 +202,12 @@ class DeepSeekOpenAIMCPIntegration:
                         }
                     ])
             else:
-                # josnContent = model_response.choices[0].message.content
-                # sys = """
-                # 将用户输入的 信息转换成符合规范的 json，参考如下规范
-                # {"nodes":[{"id":"实体唯一ID","label":"实体显示名称","size":[80,60],"type":"rect","style":{"radius":8},"info":{"entityType":"实体类型（如Merchant）","其他字段":"..."}}],"edges":[{"source":"上层实体ID","target":"下层实体ID","label":"依赖关系名称（如：包含、关联）"}]}
-                # """
-                # josnMessage = [
-                #     {"role": "system", "content": sys},
-                #     {"role": "user", "content": josnContent }
-                # ]
-                # model_response = self.client.chat.completions.create(
-                #     model="deepseek-chat",
-                #     messages=josnMessage,
-                #     response_format={"type": "json_object"}
-                # )
+                KNOWLEDGE_GRAPH_DATA = {"graphData": model_response.choices[0].message.content}
                 data = {
-                    "progress": "result",
+                    "type": "complete",
                     "status": "end",
-                    "message": model_response.choices[0].message.content,
+                    "message": KNOWLEDGE_GRAPH_DATA,
                     "timestamp": datetime.now().strftime("%H:%M:%S")
                 }
-
                 # 按照SSE格式发送数据
                 yield f"data: {json.dumps(data)}\n\n"
-
-# 使用示例
-async def main():
-    # 初始化整合器
-    integrator = DeepSeekOpenAIMCPIntegration()
-    # 处理示例查询
-    user_query = "查询大华商户 1000下门店关联的所有销售代表信息，返回规范的 json 格式，json 里面不包含换行"
-    print(f"用户查询：{user_query}")
-    try:
-        await integrator.connect_to_sse_server()
-        result = await integrator.process_query(user_query)
-        print(f"最终回答：{result}")
-    finally:
-        await integrator.cleanup()
-
-if __name__ == "__main__":
-    asyncio.run(main())

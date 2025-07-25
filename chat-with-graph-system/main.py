@@ -1,12 +1,15 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
-import time
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from typing import Dict, Any, AsyncGenerator
+import os
 import json
 import random
 from datetime import datetime
 import asyncio
-from agentDemo import DeepSeekOpenAIMCPIntegration
+from agent import DeepSeekOpenAIMCPIntegration
 
 app = FastAPI(title="SSE进度推送服务")
 
@@ -19,6 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 配置静态文件和模板
+os.makedirs('static', exist_ok=True)
+os.makedirs('templates', exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 # 初始化MCP集成实例（单例模式）
 class MCPInstance:
@@ -40,57 +48,34 @@ class MCPInstance:
 
 
 
-# 模拟任务进度生成器
-async def progress_generator():
-    progress = 0
-    while progress < 100:
-        # 随机增加进度，模拟不同处理速度
-        increment = random.randint(1, 5)
-        progress = min(progress + increment, 100)
-
-        # 生成状态信息
-        status = "处理中"
-        if progress == 100:
-            status = "已完成"
-
-        # 构建数据
-        data = {
-            "progress": progress,
-            "status": status,
-            "message": f"已完成{progress}%的任务",
-            "timestamp": datetime.now().strftime("%H:%M:%S")
-        }
-
-        # 按照SSE格式发送数据
-        yield f"data: {json.dumps(data)}\n\n"
-
-        # 控制发送间隔
-        await asyncio.sleep(random.uniform(0.5, 2.0))
-
-
-# SSE接口
-@app.get("/progress")
-async def get_progress(response: Response):
+@app.get("/api/knowledge-graph")
+async def knowledge_graph_sse(query: str = Query(..., description="查询内容")):
+    """
+    知识图谱SSE接口
+    """
+    print(query)
     # 获取MCP实例
     mcp = await MCPInstance.get_instance()
 
-    # 设置响应头，确保不缓存
-    response.headers["Cache-Control"] = "no-cache"
-    response.headers["Connection"] = "keep-alive"
     return StreamingResponse(
         mcp.process_query("查询大华商户 1000下门店关联的所有销售代表信息，返回规范的 json 格式，json 里面不包含换行"),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        }
     )
 
 
-# 前端页面
+# 首页路由
 @app.get("/", response_class=HTMLResponse)
-async def get_index():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
+async def index(request: Request):
+    """首页路由，返回前端页面"""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("mian-sse:app", host="0.0.0.0", port=9011, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=9010, reload=True)
