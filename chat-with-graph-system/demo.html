@@ -1160,13 +1160,13 @@
           container: containerId,
           width: width,
           height: height,
-          layout: {
-            type: 'force',
-            preventOverlap: true,
-            linkDistance: 200,
-            nodeStrength: -30,
-            edgeStrength: 0.1,
-          },
+        layout: {
+          type: 'dagre',
+          rankdir: 'TB', // 布局方向，LR表示从左到右，TB表示从上到下
+          nodesep: 40, // 同一层节点之间的水平距离
+          ranksep: 30, // 层与层之间的垂直距离
+          controlPoints: true // 为边添加控制点，使边的路径更平滑
+        },
           defaultNode: {
             size: 60,
             style: {
@@ -1176,11 +1176,12 @@
             },
             labelCfg: {
               style: {
-                fill: Config.COLORS.WHITE,
+                fill: Config.COLORS.PRIMARY_DARK_BLUE,
                 fontSize: 12,
                 fontWeight: 600
               },
-              offset: 20
+              position: 'bottom', // 文字位置设置为底部
+              offset: 10, // 距离节点的偏移量
             }
           },
           defaultEdge: {

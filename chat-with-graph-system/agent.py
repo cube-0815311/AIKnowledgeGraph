@@ -97,17 +97,15 @@ class DeepSeekOpenAIMCPIntegration:
         # 1. 让DeepSeek模型判断是否需要调用工具
         system_prompt = """
             你是一个“知识图谱依赖分析助手”，请根据以下实体结构与依赖规则，输出一个 JSON 格式的图谱数据（nodes 和 edges）输出之前要要校验一下是否符合 josn 规范，不符合就调整到啊符合规范。
-
-            # 实体层级结构
-            Merchant (商户)
-              └── Store (门店)
-                    ├── Product (商品)
-                    ├── SalesRepresentative (销售代表)
-
-            # 实体关系
-            - Merchant → Store        （商户包含门店）
-            - Store → Product         （门店包含商品）
-            - Store → SalesRepresentative（门店包含销售代表）
+            关系如下
+            graph TD
+              merchant[商户]
+              store[门店]
+              sales_rep[销售代表]
+            
+             
+              merchant -->|拥有| store
+              store -->|关联| sales_rep
 
             # 查询规则
             1. 用户输入一个实体 ID + 类型 + 查询方向（向下 或 向上）
@@ -122,9 +120,6 @@ class DeepSeekOpenAIMCPIntegration:
                 {
                   "id": "实体唯一ID",
                   "label": "实体显示名称",
-                  "size": [80, 60],
-                  "type": "rect",
-                  "style": { "radius": 8 },
                   "info": {
                     "entityType": "实体类型（如Merchant）",
                     "其他字段": "..."
@@ -153,8 +148,9 @@ class DeepSeekOpenAIMCPIntegration:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query}
         ]
-        print(messages)
+        nodes = []
         while True:
+            print(datetime.now().strftime("%H:%M:%S"))
             model_response = self.client.chat.completions.create(
                 model="deepseek-chat",  # DeepSeek 模型名称
                 messages=messages,
@@ -170,8 +166,9 @@ class DeepSeekOpenAIMCPIntegration:
                     tool_name = tool_call.function.name
                     tool_args = json.loads(tool_call.function.arguments)
                     # Execute tool call
+                    print(f"Tool {tool_name} tool_args: {tool_args}")
                     result = await self.mcp_session.call_tool(tool_name, tool_args)
-                    print(f"Tool {tool_name} returned: {result.content[0].text}")
+
                     # 构建数据
                     data = {
                         "type": "progress",
@@ -183,23 +180,70 @@ class DeepSeekOpenAIMCPIntegration:
                     # 按照SSE格式发送数据
                     yield f"data: {json.dumps(data)}\n\n"
                     # 将字符串安全解析成字典对象
-                    jsonData = ast.literal_eval(result.content[0].text)
+                    print(f"Tool {tool_name} tool_args: {result.content}")
+                    stores_data = []
+                    for item in result.content:
+                        if hasattr(item, 'text') and item.text:
+                            try:
+                                store_info = json.loads(item.text)
+                                jsonData = ast.literal_eval(item.text)
 
-                    # 提取字段
-                    node = {
-                        "id" : jsonData['id'],
-                        "label": jsonData['label']
-                    }
-                    # 构建数据
-                    data = {
-                        "type": "node",
-                        "status": "running",
-                        "message": node,
-                        "timestamp": datetime.now().strftime("%H:%M:%S")
-                    }
+                                # 提取字段
+                                node = {
+                                    "id": jsonData['id'],
+                                    "label": jsonData['label'],
+                                    "p_id": jsonData['p_id'],
+                                }
 
-                    # 按照SSE格式发送数据
-                    yield f"data: {json.dumps(data)}\n\n"
+                                # 构建数据
+                                data = {
+                                    "type": "node",
+                                    "status": "running",
+                                    "message": node,
+                                    "timestamp": datetime.now().strftime("%H:%M:%S")
+                                }
+
+                                # 按照SSE格式发送数据
+                                yield f"data: {json.dumps(data)}\n\n"
+                                stores_data.append(store_info)
+
+                                # 检查节点是否已存在
+                                existing_node = None
+                                for n in nodes:
+                                    if n['id'] == node['id']:
+                                        existing_node = node
+                                        break
+
+                                # 如果节点不存在，则添加到 nodes 数组
+                                if existing_node is None:
+                                    nodes.append(node)
+
+                                # 检查是否有父节点，创建边关系
+                                if node['p_id']:
+                                    # 查找父节点是否存在
+                                    parent_node = None
+                                    for n in nodes:
+                                        if n['id'] == node['p_id']:
+                                            parent_node = node
+                                            break
+
+                                    if parent_node:
+                                      edge =  {
+                                            "source": node['p_id'],
+                                            "target": node['id'],
+                                      }
+                                      data = {
+                                          "type": "edge",
+                                          "status": "running",
+                                          "message": edge,
+                                          "timestamp": datetime.now().strftime("%H:%M:%S")
+                                      }
+
+                                      # 按照SSE格式发送数据
+                                      yield f"data: {json.dumps(data)}\n\n"
+
+                            except:
+                                continue
 
                     # Continue conversation with tool results
                     messages.extend([
@@ -211,7 +255,7 @@ class DeepSeekOpenAIMCPIntegration:
                         {
                             "role": "tool",
                             "tool_call_id": tool_call.id,
-                            "content": result.content[0].text
+                            "content": '"' + json.dumps(stores_data, ensure_ascii=False) + '"'
                         }
                     ])
             else:
@@ -223,4 +267,8 @@ class DeepSeekOpenAIMCPIntegration:
                     "timestamp": datetime.now().strftime("%H:%M:%S")
                 }
                 # 按照SSE格式发送数据
+                yield "event: done\ndata: [DONE]\n\n"
                 yield f"data: {json.dumps(data)}\n\n"
+                yield "event: end\n"
+                return
+

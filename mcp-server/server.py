@@ -6,10 +6,19 @@ from mcp.server.sse import SseServerTransport
 from starlette.requests import Request
 import uvicorn
 import argparse
-import random
-import uuid
+from typing import List, Dict, Any
+# 导入数据库查询工具
+from database_tools import init_database, query_merchant, query_store, query_sales_rep
+
 # Create an MCP server
 mcp = FastMCP("achievement")
+
+
+# 初始化数据库（在应用启动时调用）
+def initialize_database():
+    """初始化数据库连接"""
+    # 替换为你的实际数据库路径
+    init_database("scenario.db")
 
 # Add an get score tool
 @mcp.tool()
@@ -24,64 +33,114 @@ def get_score_by_name(name: str) -> str:
 
 
 @mcp.tool()
-def get_merchant_info(merchant_id: str) -> object:
-    """根据商户 ID 查询查询基本信息，返回门店信息"""
-    if not merchant_id:
-        merchant_id = f"MER_{uuid.uuid4().hex[:8]}"
-    merchant_name = f"商户_{merchant_id[-4:]}"
-    stores = []
-    for i in range(random.randint(1, 2)):
-        store_id = f"STR_{uuid.uuid4().hex[:6]}"
-        store_name = f"门店_{i+1}"
-        stores.append({"storeId": store_id, "storeName": store_name})
-    return {
-        "merchantId": merchant_id,
-        "merchantName": merchant_name,
-        "id": merchant_id,
-        "label": merchant_name,
-        "stores": stores
-    }
+def get_merchant_info(code: str) -> object:
+    """根据商户 code 查询查询基本信息"""
+    try:
+        # 使用数据库查询商户信息
+        merchants = query_merchant(codes=[code])
+        if merchants:
+            merchant = merchants[0]
+            merchant_name = merchant.get('merchant_name', f'商户_{code[-4:]}')
+
+            return {
+                "merchantId": merchant.get('merchant_code', code),
+                "merchantName": merchant_name,
+                "id": merchant.get('merchant_code', code),
+                "label": merchant_name,
+                "p_id": '',
+                "owner_name": merchant.get('owner_name', ''),
+                "established_date": merchant.get('established_date', ''),
+                "merchant_type": merchant.get('merchant_type', ''),
+            }
+        else:
+            # 如果没找到，返回默认数据
+            return {
+                "merchantId": code,
+                "merchantName": f"商户_{code[-4:]}",
+                "id": code,
+                "label": f"商户_{code[-4:]}",
+                "stores": []
+            }
+    except Exception as e:
+        return {
+            "error": f"查询商户信息出错: {str(e)}",
+            "merchantId": code,
+            "merchantName": f"商户_{code[-4:]}",
+            "id": code,
+            "label": f"商户_{code[-4:]}",
+            "stores": []
+        }
 
 
 @mcp.tool()
-# 模拟生成门店信息（含销售代表）
-def get_store_info(store_id: str) -> object:
-    """查询门店基本信息，返回门店信息，包括销售信息"""
-    if not store_id:
-        store_id = f"STR_{uuid.uuid4().hex[:8]}"
-    store_name = f"门店_{store_id[-4:]}"
-    reps = []
-    names = ["张三", "李四", "王五", "赵六"]
-    for i in range(random.randint(1, 2)):
-        rep_id = f"REP_{uuid.uuid4().hex[:6]}"
-        rep_name = random.choice(names)
-        reps.append({"salesRepId": rep_id, "salesRepName": rep_name})
-    return {
-        "storeId": store_id,
-        "storeName": store_name,
-        "id": store_id,
-        "label": store_name,
-        "salesReps": reps
-    }
+def get_stores_by_merchant_code(merchant_code: str) -> List[Dict[str, Any]]:
+    """
+    根据商户编号查询门店列表
 
+    Args:
+        merchant_code (str): 商户编号
+
+    Returns:
+        List[Dict[str, Any]]: 门店列表，每个门店包含 store_code, store_name 等信息
+    """
+    try:
+        if not merchant_code:
+            return []
+
+        # 根据商户编号查询门店（假设 store 表中有 merchant_code 字段）
+        stores = query_store(codes=[merchant_code])
+
+        result = []
+        for store in stores:
+            result.append({
+                "storeId": store.get('store_code', ''),
+                "storeName": store.get('store_name', ''),
+                "id": store.get('store_code', ''),
+                "label": store.get('store_name', ''),
+                "p_id": store.get('merchant_code', ''),
+                "storeType": store.get('store_type', ''),
+                "entryMerchantCode": store.get('entry_merchant_code', '')
+            })
+
+        return result
+
+    except Exception as e:
+        return [{"error": f"查询门店列表失败: {str(e)}"}]
 
 @mcp.tool()
-# 模拟生成销售代表信息
-def get_sales_rep_info(rep_id: str) -> object:
-    """查询销售代表信息"""
-    if not rep_id:
-        rep_id = f"REP_{uuid.uuid4().hex[:8]}"
-    rep_name = f"销售_{rep_id[-4:]}"
-    phone = f"1{random.randint(3000000000, 3999999999)}"
-    email = f"{rep_name.lower()}@example.com"
-    return {
-        "salesRepId": rep_id,
-        "id": rep_id,
-        "label": rep_name,
-        "salesRepName": rep_name,
-        "phone": phone,
-        "email": email
-    }
+def get_sales_reps_by_store_code(store_code: str) -> List[Dict[str, Any]]:
+    """
+    根据门店编号查询销售代表列表
+
+    Args:
+        store_code (str): 门店编号
+
+    Returns:
+        List[Dict[str, Any]]: 销售代表列表，每个代表包含 rep_id, rep_name 等信息
+    """
+    try:
+        if not store_code:
+            return []
+
+        # 方法1: 直接查询（假设 sales_rep 表中有 store_code 字段）
+        sales_reps = query_sales_rep(codes=[store_code])
+
+        # 方法2: 如果需要关联查询，可以这样处理
+        result = []
+        for rep in sales_reps:
+            result.append({
+                "repId": rep.get('rep_id', ''),
+                "repName": rep.get('rep_name', ''),
+                "id": rep.get('rep_id', ''),
+                "label": rep.get('rep_name', ''),
+                "p_id": rep.get('store_code', ''),
+                "storeId": rep.get('store_code', '')
+            })
+
+        return result
+
+    except Exception as e:
+        return [{"error": f"查询销售代表列表失败: {str(e)}"}]
 
 
 def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:
@@ -109,6 +168,8 @@ def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlett
     )
 
 if __name__ == "__main__":
+    # 初始化数据库
+    initialize_database()
     mcp_server = mcp._mcp_server
 
     parser = argparse.ArgumentParser(description='Run MCP SSE-based server')

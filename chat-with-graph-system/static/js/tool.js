@@ -231,16 +231,20 @@ const ApiClient = {
       const url = `${Config.API.BASE_URL}${Config.API.KNOWLEDGE_GRAPH_ENDPOINT}?query=${encodeURIComponent(query)}`;
 
       const eventSource = new EventSource(url);
-
+      AppState.graphTmpData = {
+          nodes: [],
+          edges: []
+      }
       AppState.addEventSource(eventSource);
       eventSource.onmessage = function(event) {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'progress' || data.type === 'node') {
+          if (data.type === 'progress' || data.type === 'node' || data.type === 'edge') {
             onProgress(data.step, data.message, data.type);
           }else if (data.type === 'complete') {
-            onComplete(data.message);
             eventSource.close();
+            onComplete(data.message);
+
           } else if (data.type === 'error') {
             onError(data.message);
             eventSource.close();
@@ -362,12 +366,12 @@ const GraphManager = {
       width: width,
       height: height,
       layout: {
-        type: 'force',
-        preventOverlap: true,
-        linkDistance: 200,
-        nodeStrength: -30,
-        edgeStrength: 0.1,
-      },
+          type: 'dagre',
+          rankdir: 'TB', // 布局方向，LR表示从左到右，TB表示从上到下
+          nodesep: 40, // 同一层节点之间的水平距离
+          ranksep: 30, // 层与层之间的垂直距离
+          controlPoints: true // 为边添加控制点，使边的路径更平滑
+       },
       defaultNode: {
         size: 60,
         style: {
@@ -377,11 +381,12 @@ const GraphManager = {
         },
         labelCfg: {
           style: {
-            fill: Config.COLORS.WHITE,
+            fill: Config.COLORS.PRIMARY_DARK_BLUE,
             fontSize: 12,
             fontWeight: 600
           },
-          offset: 20
+          position: 'bottom', // 文字位置设置为底部
+          offset: 10, // 距离节点的偏移量
         }
       },
       defaultEdge: {
@@ -585,7 +590,7 @@ const ChatHandler = {
     ApiClient.callKnowledgeGraphSSE(
       content,
       (step, message, type) => {
-        if (type === 'node'){
+        if (type === 'node' || type === 'edge'){
               // 生成图谱
             const elements = Utils.getElements();
             var graph = null;
@@ -599,7 +604,12 @@ const ChatHandler = {
             }else {
                graph = GraphManager.graph;
             }
-            AppState.graphTmpData.nodes.push(message)
+            if (type === 'node'){
+              AppState.graphTmpData.nodes.push(message)
+            }
+            if (type === 'edge'){
+              AppState.graphTmpData.edges.push(message)
+            }
             GraphManager.renderGraph(AppState.graphTmpData);
         }else {
             // 添加并更新消息中的进度项

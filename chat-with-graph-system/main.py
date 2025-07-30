@@ -51,24 +51,43 @@ class MCPInstance:
 @app.get("/api/knowledge-graph")
 async def knowledge_graph_sse(query: str = Query(..., description="查询内容")):
     """
-    知识图谱SSE接口
+    知识图谱SSE接口 - 完整错误处理版本
     """
-    print(query)
-    # 获取MCP实例
-    mcp = await MCPInstance.get_instance()
+
+    async def event_generator():
+        try:
+            mcp = await MCPInstance.get_instance()
+
+            # 监控客户端连接状态
+            async def monitor_connection():
+                try:
+                    async for dataInfo in mcp.process_query(query):
+                        yield dataInfo
+                except asyncio.CancelledError:
+                    print("客户端断开连接或请求被取消")
+                except Exception as e:
+                    print(f"数据处理异常: {e}")
+                    yield f"data: {{\"error\": \"服务器内部错误\"}}\n\n"
+
+            async for data in monitor_connection():
+                yield data
+
+        except Exception as e:
+            print(f"SSE连接异常: {e}")
+            yield f"data: {{\"error\": \"连接错误\"}}\n\n"
 
     return StreamingResponse(
-        mcp.process_query("查询大华商户 1000下门店关联的所有销售代表信息，返回规范的 json 格式，json 里面不包含换行"),
+        event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-        }
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                    "X-Accel-Buffering": "no",
+                }
     )
 
-
-# 首页路由
+                # 首页路由
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """首页路由，返回前端页面"""
